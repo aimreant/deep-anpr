@@ -284,10 +284,10 @@ def load_fonts(folder_path):
     #fonts = [f for f in os.listdir(folder_path) if f.endswith('.ttf')]
 
     print("Reading UKNumberPlate.ttf")
-    fonts = os.listdir(os.path.join(folder_path, "UKNumberPlate.ttf"))
+    fonts = [f for f in os.listdir(folder_path) if f.endswith('UKNumberPlate.ttf')]
 
     print("Reading simhei.ttf")
-    chinese_fonts = os.listdir(os.path.join(folder_path, "simhei.ttf"))
+    chinese_fonts = [f for f in os.listdir(folder_path) if f.endswith('simhei.ttf')]
 
     for font in fonts:
         font_char_ims[font] = dict(
