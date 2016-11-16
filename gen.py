@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python
 #
 # Copyright (c) 2016 Matthew Earl
@@ -19,7 +20,6 @@
 #     DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 #     OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 #     USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 
 
 """
@@ -47,6 +47,7 @@ from PIL import ImageDraw
 from PIL import ImageFont
 
 import common
+from common import CHINESE_CHARS
 
 FONT_DIR = "./fonts"
 FONT_HEIGHT = 32  # Pixel size to which the chars are resized
@@ -61,9 +62,11 @@ def make_char_ims(font_path, output_height):
 
     font = ImageFont.truetype(font_path, font_size)
 
-    height = max(font.getsize(c)[1] for c in CHARS)
+    # get the max height, using for generating plates
+    # not only English, but also Chinese
+    height = max(font.getsize(c)[1] for c in CHINESE_CHARS+list(CHARS))
 
-    for c in CHARS:
+    for c in CHINESE_CHARS+list(CHARS):
         width = font.getsize(c)[0]
         im = Image.new("RGBA", (width, height), (0, 0, 0))
 
@@ -158,14 +161,17 @@ def make_affine_transform(from_shape, to_shape,
 
 
 def generate_code():
-    return "{}{}{}{} {}{}{}".format(
+    # Generating a Chinese plate, e.g. 京I NK4RT
+    CHAR_V2 = common.CHARS+common.DIGITS+common.DIGITS
+
+    return "{}{} {}{}{}{}{}".format(
+        random.choice(common.CHINESE_CHARS),
         random.choice(common.LETTERS),
-        random.choice(common.LETTERS),
-        random.choice(common.DIGITS),
-        random.choice(common.DIGITS),
-        random.choice(common.LETTERS),
-        random.choice(common.LETTERS),
-        random.choice(common.LETTERS))
+        random.choice(CHAR_V2),
+        random.choice(CHAR_V2),
+        random.choice(CHAR_V2),
+        random.choice(CHAR_V2),
+        random.choice(CHAR_V2))
 
 
 def rounded_rect(shape, radius):
@@ -183,14 +189,18 @@ def rounded_rect(shape, radius):
     return out
 
 
-def generate_plate(font_height, char_ims):
+def generate_plate(font_height, char_ims, chinese_char_ims):
     h_padding = random.uniform(0.2, 0.4) * font_height
     v_padding = random.uniform(0.1, 0.3) * font_height
     spacing = font_height * random.uniform(-0.05, 0.05)
     radius = 1 + int(font_height * 0.1 * random.random())
 
+    # Generating a Chinese plate, e.g. 京I NK4RT
     code = generate_code()
-    text_width = sum(char_ims[c].shape[1] for c in code)
+    chinese_char = code[:3]
+
+    text_width = chinese_char_ims[chinese_char].shape[1] + \
+                 sum(char_ims[c].shape[1] for c in code[3:])
     text_width += (len(code) - 1) * spacing
 
     out_shape = (int(font_height + v_padding * 2),
@@ -201,7 +211,15 @@ def generate_plate(font_height, char_ims):
     text_mask = numpy.zeros(out_shape)
     
     x = h_padding
-    y = v_padding 
+    y = v_padding
+
+    # For first Chinese character
+    chinese_char_im = chinese_char_ims[chinese_char]
+    ix, iy = int(x), int(y)
+    text_mask[iy:iy + chinese_char_im.shape[0], ix:ix + chinese_char_im.shape[1]] = chinese_char_im
+    x += chinese_char_im.shape[1] + spacing
+
+    # For the rest CHAR
     for c in code:
         char_im = char_ims[c]
         ix, iy = int(x), int(y)
@@ -211,6 +229,7 @@ def generate_plate(font_height, char_ims):
     plate = (numpy.ones(out_shape) * plate_color * (1. - text_mask) +
              numpy.ones(out_shape) * text_color * text_mask)
 
+    # No space in plate
     return plate, rounded_rect(out_shape, radius), code.replace(" ", "")
 
 
@@ -230,10 +249,11 @@ def generate_bg(num_bg_images):
     return bg
 
 
-def generate_im(char_ims, num_bg_images):
+def generate_im(char_ims, num_bg_images, chinese_char_ims):
     bg = generate_bg(num_bg_images)
 
-    plate, plate_mask, code = generate_plate(FONT_HEIGHT, char_ims)
+    plate, plate_mask, code = generate_plate(FONT_HEIGHT, char_ims, chinese_char_ims)
+    print("Generated plate:" + code)
     
     M, out_of_bounds = make_affine_transform(
                             from_shape=plate.shape,
@@ -243,6 +263,7 @@ def generate_im(char_ims, num_bg_images):
                             rotation_variation=1.0,
                             scale_variation=1.5,
                             translation_variation=1.2)
+
     plate = cv2.warpAffine(plate, M, (bg.shape[1], bg.shape[0]))
     plate_mask = cv2.warpAffine(plate_mask, M, (bg.shape[1], bg.shape[0]))
 
@@ -258,12 +279,33 @@ def generate_im(char_ims, num_bg_images):
 
 def load_fonts(folder_path):
     font_char_ims = {}
-    fonts = [f for f in os.listdir(folder_path) if f.endswith('.ttf')]
+    chinese_font_char_ims = {}
+
+    #fonts = [f for f in os.listdir(folder_path) if f.endswith('.ttf')]
+
+    print("Reading UKNumberPlate.ttf")
+    fonts = os.listdir(os.path.join(folder_path, "UKNumberPlate.ttf"))
+
+    print("Reading simhei.ttf")
+    chinese_fonts = os.listdir(os.path.join(folder_path, "simhei.ttf"))
+
     for font in fonts:
-        font_char_ims[font] = dict(make_char_ims(os.path.join(folder_path,
-                                                              font),
-                                                 FONT_HEIGHT))
-    return fonts, font_char_ims
+        font_char_ims[font] = dict(
+            make_char_ims(
+                os.path.join(folder_path,font),
+                FONT_HEIGHT
+            )
+        )
+
+    for font in chinese_fonts:
+        chinese_font_char_ims[font] = dict(
+            make_char_ims(
+                os.path.join(folder_path, font),
+                FONT_HEIGHT
+            )
+        )
+
+    return fonts, font_char_ims, chinese_fonts, chinese_font_char_ims
 
 
 def generate_ims():
@@ -275,17 +317,26 @@ def generate_ims():
 
     """
     variation = 1.0
-    fonts, font_char_ims = load_fonts(FONT_DIR)
+
+    # updated: add Chinese characters
+    fonts, font_char_ims, chinese_fonts, chinese_font_char_ims = load_fonts(FONT_DIR)
+    # fonts is a list, including the files in DIR fonts.
+    # font_char_ims is a dict, including the data of CHARS
+
     num_bg_images = len(os.listdir("bgs"))
+
     while True:
+        # generate_im returns (out, code, not out_of_bounds)
         yield generate_im(font_char_ims[random.choice(fonts)], num_bg_images)
 
 
 if __name__ == "__main__":
     os.mkdir("test")
+
+    # generate specific number of images
     im_gen = itertools.islice(generate_ims(), int(sys.argv[1]))
     for img_idx, (im, c, p) in enumerate(im_gen):
-        fname = "test/{:08d}_{}_{}.png".format(img_idx, c,
+        fname = "test/{:10d}_{}_{}.png".format(img_idx, c,
                                                "1" if p else "0")
         print fname
         cv2.imwrite(fname, im * 255.)

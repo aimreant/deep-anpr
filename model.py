@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2016 Matthew Earl
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,6 +39,8 @@ import common
 
 
 WINDOW_SHAPE = (64, 128)
+
+CHINESE_PLATE_TRAINING_PARAMS = 1 + len(common.CHINESE_CHARS) + 6 * len(common.CHARS)
 
 
 # Utility functions
@@ -119,8 +122,12 @@ def get_training_model():
     h_fc1 = tf.nn.relu(tf.matmul(conv_layer_flat, W_fc1) + b_fc1)
 
     # Output layer
-    W_fc2 = weight_variable([2048, 1 + 7 * len(common.CHARS)])
-    b_fc2 = bias_variable([1 + 7 * len(common.CHARS)])
+
+    # Adapt to normal Chinese plate
+    W_fc2 = weight_variable([2048, CHINESE_PLATE_TRAINING_PARAMS])
+
+    # Adapt to normal Chinese plate
+    b_fc2 = bias_variable([CHINESE_PLATE_TRAINING_PARAMS])
 
     y = tf.matmul(h_fc1, W_fc2) + b_fc2
 
@@ -144,10 +151,12 @@ def get_detect_model():
     b_fc1 = bias_variable([2048])
     h_conv1 = tf.nn.relu(conv2d(conv_layer, W_conv1,
                                 stride=(1, 1), padding="VALID") + b_fc1) 
+
     # Fifth layer
-    W_fc2 = weight_variable([2048, 1 + 7 * len(common.CHARS)])
-    W_conv2 = tf.reshape(W_fc2, [1, 1, 2048, 1 + 7 * len(common.CHARS)])
-    b_fc2 = bias_variable([1 + 7 * len(common.CHARS)])
+    # Adapt to normal Chinese plate
+    W_fc2 = weight_variable([2048, CHINESE_PLATE_TRAINING_PARAMS])
+    W_conv2 = tf.reshape(W_fc2, [1, 1, 2048, CHINESE_PLATE_TRAINING_PARAMS])
+    b_fc2 = bias_variable([CHINESE_PLATE_TRAINING_PARAMS])
     h_conv2 = conv2d(h_conv1, W_conv2) + b_fc2
 
     return (x, h_conv2, conv_vars + [W_fc1, b_fc1, W_fc2, b_fc2])

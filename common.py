@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2016 Matthew Earl
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,6 +38,14 @@ import numpy
 DIGITS = "0123456789"
 LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 CHARS = LETTERS + DIGITS
+
+CHINESE_CHARS = [
+    "京", "津", "渝", "沪", "冀", "豫", "鲁", "晋", "湘",
+    "鄂", "粤", "桂", "贵", "赣", "云", "川", "闽", "藏",
+    "陕", "甘", "宁", "青", "蒙", "辽", "吉", "黑", "新",
+    "浙", "苏", "皖", "琼", "台"
+]
+
 
 def softmax(a):
     exps = numpy.exp(a.astype(numpy.float64))

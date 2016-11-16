@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python
 #
 # Copyright (c) 2016 Matthew Earl
@@ -51,9 +52,14 @@ import model
 
 def make_scaled_ims(im, min_shape):
     ratio = 1. / 2 ** 0.5
+
+    # divided by ratio
     shape = (im.shape[0] / ratio, im.shape[1] / ratio)
 
+    # TODO can be multi-processing
     while True:
+
+        # multiplied by ratio, shrinking again and again, util reaching min_shape
         shape = (int(shape[0] * ratio), int(shape[1] * ratio))
         if shape[0] < min_shape[0] or shape[1] < min_shape[1]:
             break
@@ -87,6 +93,8 @@ def detect(im, param_vals):
     # Execute the model at each scale.
     with tf.Session(config=tf.ConfigProto()) as sess:
         y_vals = []
+
+        # TODO can be multi-processing
         for scaled_im in scaled_ims:
             feed_dict = {x: numpy.stack([scaled_im])}
             feed_dict.update(dict(zip(params, param_vals)))

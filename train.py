@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python
 #
 # Copyright (c) 2016 Matthew Earl
@@ -50,13 +51,18 @@ import model
 
 
 def code_to_vec(p, code):
+    # change code(7 characters) to vector
+
     def char_to_vec(c):
+        # change character to vector
         y = numpy.zeros((len(common.CHARS),))
         y[common.CHARS.index(c)] = 1.0
         return y
 
+    # The vertical combination
     c = numpy.vstack([char_to_vec(c) for c in code])
 
+    # If p, then put a 1 to the head, else put a 0
     return numpy.concatenate([[1. if p else 0], c.flatten()])
 
 
@@ -77,16 +83,21 @@ def unzip(b):
 
 def batch(it, batch_size):
     out = []
+
+    # yield the out separately according to batch_size
     for x in it:
         out.append(x)
         if len(out) == batch_size:
             yield out
             out = []
+
+    # if there are some rests in out
     if out:
         yield out
 
 
 def mpgen(f):
+    # multi processing
     def main(q, args, kwargs):
         try:
             for item in f(*args, **kwargs):
@@ -113,6 +124,8 @@ def mpgen(f):
 
 @mpgen
 def read_batches(batch_size):
+
+    # get the images generator
     g = gen.generate_ims()
     def gen_vecs():
         for im, c, p in itertools.islice(g, batch_size):
@@ -123,6 +136,7 @@ def read_batches(batch_size):
 
 
 def get_loss(y, y_):
+    # TODO adapt
     # Calculate the loss from digits being incorrect.  Don't count loss from
     # digits that are in non-present plates.
     digits_loss = tf.nn.softmax_cross_entropy_with_logits(
@@ -169,24 +183,31 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
     """
     x, y, params = model.get_training_model()
 
-    y_ = tf.placeholder(tf.float32, [None, 7 * len(common.CHARS) + 1])
+    # Adapt to normal Chinese plate
+    y_ = tf.placeholder(tf.float32, [None, model.CHINESE_PLATE_TRAINING_PARAMS])
 
     digits_loss, presence_loss, loss = get_loss(y, y_)
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(loss)
 
+    # TODO adapt
     best = tf.argmax(tf.reshape(y[:, 1:], [-1, 7, len(common.CHARS)]), 2)
     correct = tf.argmax(tf.reshape(y_[:, 1:], [-1, 7, len(common.CHARS)]), 2)
 
     if initial_weights is not None:
         assert len(params) == len(initial_weights)
+
+        # TODO assign()
         assign_ops = [w.assign(v) for w, v in zip(params, initial_weights)]
 
     init = tf.initialize_all_variables()
 
     def vec_to_plate(v):
+        # TODO
         return "".join(common.CHARS[i] for i in v)
 
     def do_report():
+        # print out current result(report)
+
         r = sess.run([best,
                       correct,
                       tf.greater(y[:, 0], 0),
@@ -218,11 +239,15 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
                                            for b, c, pb, pc in zip(*r_short)))
 
     def do_batch():
+        # doing training
+
         sess.run(train_step,
                  feed_dict={x: batch_xs, y_: batch_ys})
         if batch_idx % report_steps == 0:
+            # every report step
             do_report()
 
+    # TODO modify gpu options
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.95)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         sess.run(init)
@@ -254,10 +279,12 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
+        # Continue to train with the weights
         f = numpy.load(sys.argv[1])
         initial_weights = [f[n] for n in sorted(f.files,
                                                 key=lambda s: int(s[4:]))]
     else:
+        # Start a new train
         initial_weights = None
 
     train(learn_rate=0.001,
