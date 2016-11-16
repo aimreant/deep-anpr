@@ -327,7 +327,11 @@ def generate_ims():
 
     while True:
         # generate_im returns (out, code, not out_of_bounds)
-        yield generate_im(font_char_ims[random.choice(fonts)], num_bg_images)
+        yield generate_im(
+            font_char_ims[random.choice(fonts)],
+            num_bg_images,
+            chinese_font_char_ims[random.choice(chinese_fonts)]
+        )
 
 
 if __name__ == "__main__":
