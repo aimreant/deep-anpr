@@ -220,7 +220,7 @@ def generate_plate(font_height, char_ims, chinese_char_ims):
     x += chinese_char_im.shape[1] + spacing
 
     # For the rest CHAR
-    for c in code:
+    for c in code[3:]:
         char_im = char_ims[c]
         ix, iy = int(x), int(y)
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
